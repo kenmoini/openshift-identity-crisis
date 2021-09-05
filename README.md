@@ -7,6 +7,6 @@ This is a repository to help bootstrap the different Identity Providers that Ope
 - GitHub OAuth
 - GitLab OAuth
 - Google OAuth
-- HTPasswd
+- [HTPasswd](./htpasswd)
 - LDAP
 - SSO, OpenID Connection
