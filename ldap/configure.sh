@@ -4,16 +4,15 @@
 # Setup Vars
 #######################################################################
 
-export HTPASSWD_FILE="$(pwd)/ocp-users.htpasswd"
+export LDAP_CA_CERT_FILE="$HOME/ldap-ca-cert.pem"
 
-export INITIAL_USER_NAME="myAdmin"
-export INITIAL_USER_PASS="s0m3P455"
+export BIND_USER_NAME="myAdmin"
+export BIND_USER_PASS="s0m3P455"
 
-export BULK_NUM_USERS=10
-export BULK_USER_PREFIX="user"
-export BULK_USER_SUFFIX=""
-export BULK_USER_PASSWORD="s3cur3P455"
-export BULK_USER_START_NUM=1
+export LDAP_BASE="dc=kemo,dc=labs"
+export LDAP_URL="ldaps://idm.kemo.labs:636/cn=users,cn=accounts,dc=kemo,dc=labs?uid?sub?(uid=*)"
+
+export BIND_USER_DN="uid=${BIND_USER_NAME},cn=users,cn=accounts,${LDAP_BASE}"
 
 #######################################################################
 # Functions
@@ -42,30 +41,32 @@ function containsElement () {
 
 echo "Checking for required applications..."
 checkForProgramAndExit oc
-checkForProgramAndExit yq
 
-echo "Creating HTPasswd file..."
-touch $HTPASSWD_FILE
-
-echo "Create the initial user..."
-htpasswd -c -B -b $HTPASSWD_FILE $INITIAL_USER_NAME $INITIAL_USER_PASS
-
-echo "Create bulk users..."
-for ((n=$BULK_USER_START_NUM;n<$BULK_NUM_USERS;n++))
-do
- BULK_USERNAME="${BULK_USER_PREFIX}${n}${BULK_USER_SUFFIX}"
- echo "  Adding ${BULK_USERNAME} to ${HTPASSWD_FILE}..."
- htpasswd -b $HTPASSWD_FILE ${BULK_USERNAME} ${BULK_USER_PASSWORD} >/dev/null 2>&1
-done
-
+# Check for a logged in user
 oc whoami >/dev/null 2>&1
 if [[ $? == 0 ]]; then
   # Check for existing secret
-  oc get secret htpasswd-secret -n openshift-config >/dev/null 2>&1
+  oc get secret ldap-bind-password -n openshift-config >/dev/null 2>&1
   if [[ $? == 1 ]]; then
-    echo "Creating HTPasswd secret..."
-    oc create secret generic htpasswd-secret --from-file=htpasswd=$HTPASSWD_FILE -n openshift-config
+    echo "Creating LDAP Bind User Secret..."
+    oc create secret generic ldap-bind-password --from-literal=bindPassword=$BIND_USER_PASS -n openshift-config
   fi
+
+  # Check for existing ConfigMap
+  oc get configmap ldap-ca-cert -n openshift-config >/dev/null 2>&1
+  if [[ $? == 1 ]]; then
+    if [[ -f $LDAP_CA_CERT_FILE ]]; then
+      echo "Creating LDAP CA Cert ConfigMap..."
+      oc create configmap ldap-ca-cert --from-file=ca.crt=$LDAP_CA_CERT_FILE -n openshift-config
+    else
+      echo "LDAP CA Certificate not found at ${LDAP_CA_CERT_FILE} !"
+      exit 1
+    fi
+  fi
+
+  # Template out the OAuth Config if does not exist
+  sed "s/BIND_USER_DN/${BIND_USER_DN}/g" oauth-config.yaml.template > oauth-config.yaml
+  sed -i "s|LDAP_URL_HERE|${LDAP_URL}|g" oauth-config.yaml
   
   # Take current OAuth cluster configuration
   CURRENT_CONFIG_LEN=$(yq <<<$(oc get OAuth cluster -o yaml) '.spec.identityProviders | length')
@@ -90,11 +91,11 @@ if [[ $? == 0 ]]; then
     CURRENT_IDPs="[${CURRENT_IDPs}$(yq -c '.spec.identityProviders[0]' oauth-config.yaml)]"
 
     # Apply the joined configuration
-    echo "Adding HTPasswd to OAuth cluster configuration..."
+    echo "Adding LDAP to OAuth cluster configuration..."
     oc patch OAuth cluster --type merge --patch '{"spec": { "identityProviders": '$CURRENT_IDPs' }}'
   fi
 
-  echo "Finished provisioning Htpasswd Identity Provider for OpenShift!"
+  echo "Finished provisioning LDAP Identity Provider for OpenShift!"
   exit 0
 else
   echo "Not logged into an OpenShift cluster with `oc` CLI!"
