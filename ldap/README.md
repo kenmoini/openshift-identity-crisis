@@ -32,6 +32,8 @@ BIND_PASSWORD="s3cur3P455"
 oc create secret generic ldap-bind-password --from-literal=bindPassword=${BIND_PASSWORD} -n openshift-config
 ```
 
+The Secret key must be called `bindPassword`.
+
 ## 3. Create the Certificate ConfigMap
 
 Assuming that the LDAP CA Certificate downloaded earlier is stored in `$HOME/ldap-ca-cert.pem`, you can run the following command to create a ConfigMap from that certificate file:
@@ -39,6 +41,8 @@ Assuming that the LDAP CA Certificate downloaded earlier is stored in `$HOME/lda
 ```bash
 oc create configmap ldap-ca-cert --from-file=ca.crt=cert.pem -n openshift-config
 ```
+
+The ConfigMap key must be called `ca.crt`.
 
 ## 4. Apply the LDAP OAuth Configuration
 
@@ -85,3 +89,69 @@ Make sure to set the following to meet the specifications of your LDAP server - 
 - `.spec.identityProviders.ldap.name` is the friendly name given to the Identity Provider on the Auth Provider portion of the OpenShift log in screen
 
 > ## Wait a few minutes for the Authentication Operator to reload the configuration across the running Pods and you should be able to see a new Identity Provider on the OpenShift Log In Screen
+
+## Bonus: LDAP Group Syncing & RoleBinding
+
+Since LDAP can support complex grouping of users and flexible ways of querying and targeting them, we can sync the provided Groups to RoleBindings so LDAP users who are assigned Administrative privileges and groups can automatically assume cluster-admin on the OpenShift cluster without having to individually assign them to each user.
+
+In the following example, we'll sync two groups from LDAP, `labadmins` and `admins`:
+
+```yaml
+kind: LDAPSyncConfig
+apiVersion: v1
+url: ldaps://idm.kemo.labs:636
+insecure: false
+groupUIDNameMapping:
+  "cn=labadmins,cn=groups,cn=accounts,dc=kemo,dc=labs": labadmins
+  "cn=admins,cn=groups,cn=accounts,dc=kemo,dc=labs": admins
+bindDN: uid=admin,cn=users,cn=accounts,dc=kemo,dc=labs
+bindPassword: SOME_SECURE_PASSWORD
+ca: cert.pem
+rfc2307:
+  groupsQuery:
+    baseDN: "cn=groups,cn=accounts,dc=kemo,dc=labs"
+    scope: sub
+    derefAliases: never
+    pageSize: 0
+    filter: (|(cn=labadmins)(cn=admins))
+  groupUIDAttribute: dn 
+  groupNameAttributes: [ cn ] 
+  groupMembershipAttributes: [ member ]
+  usersQuery:
+    baseDN: "cn=users,cn=accounts,dc=kemo,dc=labs"
+    scope: sub
+    derefAliases: never
+    pageSize: 0
+  userUIDAttribute: dn
+  userNameAttributes: [ uid ]
+  tolerateMemberNotFoundErrors: true
+  tolerateMemberOutOfScopeErrors: true
+```
+
+This is a cluster-wide configuration and not namespaced - you can `oc apply -f` this manifest as a YAML file.
+
+Make sure to set the following to meet the specifications of your LDAP server - this is formatted to the Red Hat Identity Management default standard schema:
+
+- `.url` is simply the `${LDAP_PROTOCOL}://${LDAP_HOSTNAME}:${LDAP_PORT}` without anything else trailing
+- `.groupUIDNameMapping` is where you can find the two LDAP groups being synced and their name that will be referenced as OpenShift groups
+- `.bindDN` is the same Binding User DN that was used earlier
+- `.bindPassword` is the Binding User's password - yeah, unfortunately it can't reference the same Secret from earlier when the LDAP configuration was made, however this `LDAPSyncConfig/v1` resource is only available to cluster-admins so keep your RBAC tight
+- `.rfc2307.groupsQuery.baseDN` is the base DN provided to query LDAP Groups
+- `.rfc2307.groupsQuery.filter` as is currently set allows for the `labadmins` or `admins` Group
+- `.rfc2307.usersQuery` sets the base query parameters for users - this is for any user without additional filtering
+
+Next, run the sync configuration against the OpenShift cluster and apply a cluster-admin ClusterRoleBinding to the Groups we named...assuming this LDAPSyncConfig manifest was created as `ldap-sync-config.yaml`:
+
+```bash
+## Sync the configuration
+oc adm groups sync --sync-config=ldap-sync-config.yaml --confirm
+
+## Set RBAC bindings
+oc adm policy add-cluster-role-to-group cluster-admin admins
+oc adm policy add-cluster-role-to-group cluster-admin labadmins
+```
+
+## Additional Documentation
+
+- Red Hat OpenShift Container Platform LDAP Configuration: https://docs.openshift.com/container-platform/4.8/authentication/identity_providers/configuring-ldap-identity-provider.html
+- Red Hat OpenShift Container Platform LDAP Group Syncing: https://docs.openshift.com/container-platform/4.8/authentication/ldap-syncing.html

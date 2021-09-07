@@ -23,5 +23,5 @@ spec:
         insecure: false
         url: LDAP_URL_HERE
       mappingMethod: claim
-      name: LabLDAP
+      name: MyLDAP
       type: LDAP

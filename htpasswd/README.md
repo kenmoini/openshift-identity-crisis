@@ -85,3 +85,7 @@ oc patch OAuth cluster --type merge --patch '{"spec": { "identityProviders": '$C
 This is a cluster-wide configuration and not namespaced.
 
 > ## Wait a few minutes for the Authentication Operator to reload the configuration across the running Pods and you should be able to see a new Identity Provider on the OpenShift Log In Screen
+
+## Additional Documentation
+
+Red Hat OpenShift Container Platform HTPasswd Configuration: https://docs.openshift.com/container-platform/4.8/authentication/identity_providers/configuring-htpasswd-identity-provider.html
