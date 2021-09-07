@@ -4,16 +4,16 @@
 # Setup Vars
 #######################################################################
 
-export HTPASSWD_FILE="$(pwd)/ocp-users.htpasswd"
+export HTPASSWD_FILE=${HTPASSWD_FILE:="$(pwd)/ocp-users.htpasswd"}
 
-export INITIAL_USER_NAME="myAdmin"
-export INITIAL_USER_PASS="s0m3P455"
+export INITIAL_USER_NAME=${INITIAL_USER_NAME:="myAdmin"}
+export INITIAL_USER_PASS=${INITIAL_USER_PASS:="s0m3P455"}
 
-export BULK_NUM_USERS=10
-export BULK_USER_PREFIX="user"
-export BULK_USER_SUFFIX=""
-export BULK_USER_PASSWORD="s3cur3P455"
-export BULK_USER_START_NUM=1
+export BULK_NUM_USERS=${BULK_NUM_USERS:=10}
+export BULK_USER_PREFIX=${BULK_USER_PREFIX:="user"}
+export BULK_USER_SUFFIX=${BULK_USER_SUFFIX:=""}
+export BULK_USER_PASSWORD=${BULK_USER_PASSWORD:="s3cur3P455"}
+export BULK_USER_START_NUM=${BULK_USER_START_NUM:=1}
 
 #######################################################################
 # Functions

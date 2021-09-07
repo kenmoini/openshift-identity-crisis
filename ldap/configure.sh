@@ -4,15 +4,13 @@
 # Setup Vars
 #######################################################################
 
-export LDAP_CA_CERT_FILE="$HOME/ldap-ca-cert.pem"
+export LDAP_CA_CERT_FILE=${LDAP_CA_CERT_FILE:="$HOME/ldap-ca-cert.pem"}
+export LDAP_BASE=${LDAP_BASE:="dc=kemo,dc=labs"}
+export LDAP_URL=${LDAP_URL:="ldaps://idm.kemo.labs:636/cn=users,cn=accounts,${LDAP_BASE}?uid?sub?(uid=*)"}
 
-export BIND_USER_NAME="myAdmin"
-export BIND_USER_PASS="s0m3P455"
-
-export LDAP_BASE="dc=kemo,dc=labs"
-export LDAP_URL="ldaps://idm.kemo.labs:636/cn=users,cn=accounts,dc=kemo,dc=labs?uid?sub?(uid=*)"
-
-export BIND_USER_DN="uid=${BIND_USER_NAME},cn=users,cn=accounts,${LDAP_BASE}"
+export BIND_USER_NAME=${BIND_USER_NAME:="myAdmin"}
+export BIND_USER_PASS=${BIND_USER_PASS:="s0m3P455"}
+export BIND_USER_DN=${BIND_USER_DN:="uid=${BIND_USER_NAME},cn=users,cn=accounts,${LDAP_BASE}"}
 
 #######################################################################
 # Functions
