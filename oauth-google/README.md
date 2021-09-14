@@ -9,7 +9,7 @@ Before you can configure OpenShift to use Google as an Identity Provider, you ne
 Everything in GCP is organized into Projects - create a new Project in an organization: 
 https://console.cloud.google.com/cloud-resource-manager
 
-<p align="center" style="text-align:center">
+<div align="center" style="text-align:center">
 
 <img alt="Create a new Project" src="./img/1_createProject.png" />
 
@@ -23,7 +23,7 @@ https://console.cloud.google.com/cloud-resource-manager
 
 **Enter the newly created Project**
 
-</p>
+</div>
 
 ---
 
