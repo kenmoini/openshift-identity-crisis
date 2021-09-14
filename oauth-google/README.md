@@ -4,12 +4,12 @@
 
 Before you can configure OpenShift to use Google as an Identity Provider, you need to create the Project > Credentials in Google Cloud.
 
-### 1. Creating the Google Cloud Project
+## 1. Creating the Google Cloud Project
 
 Everything in GCP is organized into Projects - create a new Project in an organization: 
 https://console.cloud.google.com/cloud-resource-manager
 
-<center>
+<p align="center">
 
 ![Create a new Project](./img/1_createProject.png)
 
@@ -23,11 +23,11 @@ https://console.cloud.google.com/cloud-resource-manager
 
 **Enter the newly created Project**
 
-</center>
+</p>
 
 ---
 
-### One-time Setup: Configure Consent Screen
+## One-time Setup: Configure Consent Screen
 
 In case this is a brand new Project and your first time setting up an OAuth Client ID, you’ll need to set a App/Product Name on the Consent Screen that is prompted to the user when authenticating.
 
@@ -42,7 +42,7 @@ https://console.cloud.google.com/apis/credentials/consent
 
 </center>
 
-#### Consent Screen User Type
+### Consent Screen User Type
 
 Select whatever User Type you feel appropriate for your use case - the Internal type has the lowest barrier of use.
 
@@ -54,7 +54,7 @@ Select whatever User Type you feel appropriate for your use case - the Internal 
 
 </center>
 
-#### Consent Screen Application Information
+### Consent Screen Application Information
 
 This next form will prompt for details around what is presented to the user when authenticating.
 
@@ -66,7 +66,7 @@ This next form will prompt for details around what is presented to the user when
 
 </center>
 
-#### Provided Scopes
+### Provided Scopes
 
 Scopes allow your application to retrieve information from the Google Identity Provider.
 
@@ -90,7 +90,7 @@ Scopes allow your application to retrieve information from the Google Identity P
 
 ---
 
-### 2. Creating the OAuth Client ID
+## 2. Creating the OAuth Client ID
 
 With the Consent Screen configured, we can continue to create the OAuth Client ID that we'll use to configure the OpenShift cluster that will use this Google IDP.
 
