@@ -42,6 +42,8 @@ https://console.cloud.google.com/apis/credentials/consent
 
 </center>
 
+---
+
 ### Consent Screen User Type
 
 Select whatever User Type you feel appropriate for your use case - the Internal type has the lowest barrier of use.
@@ -54,6 +56,8 @@ Select whatever User Type you feel appropriate for your use case - the Internal 
 
 </center>
 
+---
+
 ### Consent Screen Application Information
 
 This next form will prompt for details around what is presented to the user when authenticating.
@@ -65,6 +69,8 @@ This next form will prompt for details around what is presented to the user when
 **Fill in some information**
 
 </center>
+
+---
 
 ### Provided Scopes
 
@@ -145,7 +151,7 @@ https://docs.openshift.com/container-platform/4.8/authentication/identity_provid
 
 1. Get the Client ID from the downloaded JSON file with the following command:
 
-`jq -r '.web.client_id' ./creds.json`
+    `jq -r '.web.client_id' ./creds.json`
 
 2. Replace the ***CLIENT_ID_HERE*** text in the following YAML with whatever your Client ID is:
 
