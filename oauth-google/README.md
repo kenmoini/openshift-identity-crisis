@@ -11,15 +11,15 @@ https://console.cloud.google.com/cloud-resource-manager
 
 <p align="center" style="text-align:center">
 
-![Create a new Project](./img/1_createProject.png)
+<img alt="Create a new Project" src="./img/1_createProject.png" />
 
 **Create a new Project**
 
-![Give it a name](./img/2_nameProject.png)
+<img alt="Give it a name" src="./img/2_nameProject.png" />
 
 **Give it a name**
 
-![Enter the newly created Project](./img/3_selectProjectNotification.png)
+<img alt="Enter the newly created Project" src="./img/3_selectProjectNotification.png" />
 
 **Enter the newly created Project**
 
