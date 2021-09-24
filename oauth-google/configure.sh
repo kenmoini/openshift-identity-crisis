@@ -19,6 +19,11 @@ case "${unameOut}" in
     Darwin*)    machine=osx-amd;;
     *)          machine="UNKNOWN:${unameOut}"
 esac
+case "${unameOut}" in
+    Linux*)     yqmachine=linux;;
+    Darwin*)    yqmachine=darwin;;
+    *)          yqmachine="UNKNOWN:${unameOut}"
+esac
 
 archOut="$(arch)"
 case "${archOut}" in
@@ -26,6 +31,12 @@ case "${archOut}" in
     x86*)        arch=32;;
     *)          arch="UNKNOWN:${archOut}"
 esac
+case "${archOut}" in
+    x86_64*)     yqarch=amd64;;
+    x86*)        yqarch=386;;
+    *)          arch="UNKNOWN:${archOut}"
+esac
+
 
 PWD=$(pwd)
 PARENT_DIR=$(dirname "$PWD")
@@ -65,7 +76,7 @@ function checkyq () {
   mkdir -p $BIN_DIR
 
   if [ ! -f "${BIN_DIR}/yq" ]; then
-    curl -sSL https://github.com/mikefarah/yq/releases/download/v4.13.2/yq_${machine}_${arch} -o "${BIN_DIR}/yq"
+    curl -sSL https://github.com/mikefarah/yq/releases/download/v4.13.2/yq_${yqmachine}_${yqarch} -o "${BIN_DIR}/yq"
   fi
 
   chmod +x "${BIN_DIR}/yq"
