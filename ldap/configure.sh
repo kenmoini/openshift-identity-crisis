@@ -140,7 +140,7 @@ if [[ $? == 0 ]]; then
     fi
   fi
 
-  echo -e "\nFinished provisioning Htpasswd Identity Provider for OpenShift!\n\n"
+  echo -e "\nFinished provisioning LDAP Identity Provider for OpenShift!\n\n"
   exit 0
 else
   echo "Not logged into an OpenShift cluster with `oc` CLI!"
