@@ -5,16 +5,37 @@
 #######################################################################
 
 export LDAP_CA_CERT_FILE=${LDAP_CA_CERT_FILE:="$HOME/ldap-ca-cert.pem"}
+export LDAP_SERVER=${LDAP_SERVER:="idm.kemo.labs"}
 export LDAP_BASE=${LDAP_BASE:="dc=kemo,dc=labs"}
-export LDAP_URL=${LDAP_URL:="ldaps://idm.kemo.labs:636/cn=users,cn=accounts,${LDAP_BASE}?uid?sub?(uid=*)"}
 
 export BIND_USER_NAME=${BIND_USER_NAME:="myAdmin"}
 export BIND_USER_PASS=${BIND_USER_PASS:="s0m3P455"}
+
 export BIND_USER_DN=${BIND_USER_DN:="uid=${BIND_USER_NAME},cn=users,cn=accounts,${LDAP_BASE}"}
+export LDAP_URL=${LDAP_URL:="ldaps://${LDAP_SERVER}:636/cn=users,cn=accounts,${LDAP_BASE}?uid?sub?(uid=*)"}
 
 #######################################################################
 # Functions
 #######################################################################
+
+unameOut="$(uname -s)"
+case "${unameOut}" in
+    Linux*)     machine=linux;;
+    Darwin*)    machine=darwin;;
+    *)          machine="UNKNOWN:${unameOut}"
+esac
+
+archOut="$(arch)"
+case "${archOut}" in
+    x86_64*)     arch=amd64;;
+    x86*)        arch=386;;
+    *)          arch="UNKNOWN:${archOut}"
+esac
+
+PWD=$(pwd)
+PARENT_DIR=$(dirname "$PWD")
+BIN_DIR="${PARENT_DIR}/bin"
+YQ_BIN="${BIN_DIR}/yq"
 
 function checkForProgramAndExit() {
     command -v $1
@@ -33,16 +54,31 @@ function containsElement () {
   return 1
 }
 
+function checkyq () {
+  mkdir -p $BIN_DIR
+
+  if [ ! -f "${BIN_DIR}/yq" ]; then
+    curl -sSL https://github.com/mikefarah/yq/releases/download/v4.13.2/yq_${machine}_${arch} -o "${BIN_DIR}/yq"
+  fi
+
+  chmod +x "${BIN_DIR}/yq"
+}
+checkyq
+
 #######################################################################
 # Main Script
 #######################################################################
 
 echo "Checking for required applications..."
+export PATH="${BIN_DIR}:$PATH"
+
 checkForProgramAndExit oc
+checkForProgramAndExit yq
 
 # Check for a logged in user
 oc whoami >/dev/null 2>&1
 if [[ $? == 0 ]]; then
+
   # Check for existing secret
   oc get secret ldap-bind-password -n openshift-config >/dev/null 2>&1
   if [[ $? == 1 ]]; then
@@ -67,33 +103,44 @@ if [[ $? == 0 ]]; then
   sed -i "s|LDAP_URL_HERE|${LDAP_URL}|g" oauth-config.yaml
   
   # Take current OAuth cluster configuration
-  CURRENT_CONFIG_LEN=$(yq <<<$(oc get OAuth cluster -o yaml) '.spec.identityProviders | length')
+  CURRENT_CLUSTER_CONFIG=$(oc get OAuth cluster -o yaml)
+  CURRENT_CONFIG_LEN=$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} eval '.spec.identityProviders | length' -)
   CURRENT_IDPs=""
   CURRENT_IDP_NAMES=()
+  echo -e "\nCurrent Config:\n\n${CURRENT_CLUSTER_CONFIG}"
 
+  # Add current OAuth Identity Providers to an array
   for ((n=0;n<$CURRENT_CONFIG_LEN;n++))
   do
-    CUR_NAME=$(oc get OAuth cluster -o yaml | yq -c '.spec.identityProviders['$n'].name')
+    CUR_NAME=$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} eval '.spec.identityProviders['$n'].name' -)
     echo "Found IDP: ${CUR_NAME}..."
     CURRENT_IDP_NAMES=(${CURRENT_IDP_NAMES[@]} "$CUR_NAME")
-    CURRENT_IDPs="${CURRENT_IDPs}$(oc get OAuth cluster -o yaml | yq -c '.spec.identityProviders['$n']'),"
+    CURRENT_IDPs="${CURRENT_IDPs}$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} -o=json eval '.spec.identityProviders['$n']' -),"
   done
 
-  containsElement $(yq -c '.spec.identityProviders[0].name' oauth-config.yaml) "${CURRENT_IDP_NAMES[@]}"
+  containsElement $(cat oauth-config.yaml | ${YQ_BIN} eval '.spec.identityProviders[0].name' -) "${CURRENT_IDP_NAMES[@]}"
 
   if [[ $? == 0 ]]; then
-    echo "This identity provider $(yq -c '.spec.identityProviders[0].name' oauth-config.yaml) looks to already be configured!"
+    echo "This identity provider $(cat oauth-config.yaml | ${YQ_BIN} eval '.spec.identityProviders[0].name' -) looks to already be configured!"
     exit 0
   else
     # Add the proposed IDP to the array
-    CURRENT_IDPs="[${CURRENT_IDPs}$(yq -c '.spec.identityProviders[0]' oauth-config.yaml)]"
+    CURRENT_IDPs="[${CURRENT_IDPs}$(cat oauth-config.yaml | ${YQ_BIN} -o=json eval '.spec.identityProviders[0]' -)]"
 
     # Apply the joined configuration
     echo "Adding LDAP to OAuth cluster configuration..."
-    oc patch OAuth cluster --type merge --patch '{"spec": { "identityProviders": '$CURRENT_IDPs' }}'
+    PATCH_CONTENTS='{"spec": { "identityProviders": '${CURRENT_IDPs}' }}'
+    if [[ $1 == "--commit" ]]; then
+      echo "Writing configuration to cluster!"
+      oc patch OAuth cluster --type merge --patch "$PATCH_CONTENTS"
+    else
+      echo -e "\n\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n\n"
+      oc patch OAuth cluster --type merge --patch "$PATCH_CONTENTS" --dry-run=client -o yaml
+      echo -e "\n\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n\n"
+    fi
   fi
 
-  echo "Finished provisioning LDAP Identity Provider for OpenShift!"
+  echo -e "\nFinished provisioning Htpasswd Identity Provider for OpenShift!\n\n"
   exit 0
 else
   echo "Not logged into an OpenShift cluster with `oc` CLI!"

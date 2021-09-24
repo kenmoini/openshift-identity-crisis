@@ -1,5 +1,18 @@
 # LDAP Identity Provider for OpenShift
 
+# Automation
+
+In this directory you can find a `./configure.sh` file that will allow you to quickly apply LDAP authentication to a logged in cluster.  ***Edit the file*** and run as follows:
+
+```bash
+# Check configuration
+./configure.sh
+# Actually apply configuration
+./configure.sh --commit
+```
+
+# Manual Processes
+
 ## Prerequisites
 
 - An OpenShift Cluster user with cluster-admin permissions
