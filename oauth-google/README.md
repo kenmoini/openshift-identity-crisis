@@ -1,5 +1,22 @@
 # Google OAuth Identity Provider for OpenShift
 
+# Automation
+
+*(Still needs the Manual Processes > Prerequisites to take place in Google Cloud)*
+
+In this directory you can find a `./configure.sh` file that will allow you to quickly apply Google OAuth authentication to a logged in cluster.  ***Edit the file*** and run as follows:
+
+```bash
+# Check configuration
+./configure.sh
+# Actually apply configuration
+./configure.sh --commit
+```
+
+Requires the Google Cloud Credentials JSON file to be present on the system.
+
+# Manual Processes
+
 ## Prerequisites
 
 Before you can configure OpenShift to use Google as an Identity Provider, you need to create the Project > Credentials in Google Cloud.
