@@ -21,7 +21,7 @@ Requires the Google Cloud Credentials JSON file to be present on the system.
 
 Before you can configure OpenShift to use Google as an Identity Provider, you need to create the Project > Credentials in Google Cloud.
 
-## 1. Creating the Google Cloud Project
+### 1. Creating the Google Cloud Project
 
 Everything in GCP is organized into Projects - create a new Project in an organization: 
 https://console.cloud.google.com/cloud-resource-manager
@@ -113,7 +113,7 @@ Scopes allow your application to retrieve information from the Google Identity P
 
 ---
 
-## 2. Creating the OAuth Client ID
+### 2. Creating the OAuth Client ID
 
 With the Consent Screen configured, we can continue to create the OAuth Client ID that we'll use to configure the OpenShift cluster that will use this Google IDP.
 
@@ -152,7 +152,7 @@ Click **Create**
 
 Once you have clicked Create in the previous step, you will be redirected to the Credentials page with a pop-up modal that will provide you with the OAuth Credentials and the ability to download it as a JSON file - do so.
 
-## 3. Create OpenShift Secret for the OAuth Client Secret
+### 3. Create OpenShift Secret for the OAuth Client Secret
 
 Next, you can create the needed OpenShift Secret with the following command, so long as you are logged in as a cluster-admin, provided the downloaded JSON file from the previous step is located in the local directory (also requires the `jq` binary)
 
@@ -160,7 +160,7 @@ Next, you can create the needed OpenShift Secret with the following command, so 
 oc create secret generic google-oauth-client-secret --from-literal=clientSecret=$(jq -r '.web.client_secret' ./creds.json) -n openshift-config
 ```
 
-## 4. Create the YAML for the OAuth Custom Resource
+### 4. Create the YAML for the OAuth Custom Resource
 
 With the Secret created, you can now reference it in the YAML definition of the OAuth provider:
 
@@ -194,7 +194,7 @@ spec:
 - The `.spec.identityProviders[0].name` is the same as the IdP Name prefixed to the end of the Authorized Redirect URI that was created in Google Cloud earlier
 - The `.spec.identityProviders[0].google.hostedDomain` can be changed to a wildcard [*] to allow other Google Auth users that are not part of the `@redhat.com` domain
 
-## 5. Apply the YAML to the OpenShift Cluster
+### 5. Apply the YAML to the OpenShift Cluster
 
 With the YAML created, we can apply it to the cluster now with the following command, assuming you saved it to a file called oauth.yaml:
 
@@ -204,8 +204,8 @@ With the YAML created, we can apply it to the cluster now with the following com
 oc patch OAuth cluster --patch-file oauth.yaml
 ```
 
-## 6. ???????
+### 6. ???????
 
-## 7. PROFIT!!!!!1
+### 7. PROFIT!!!!!1
 
 Once the Authentication Operator has restarted you should be able to log into the cluster with Google Authentication!
