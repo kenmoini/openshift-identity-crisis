@@ -48,7 +48,6 @@ case "${archOut}" in
     *)          arch="UNKNOWN:${archOut}"
 esac
 
-
 PWD=$(pwd)
 PARENT_DIR=$(dirname "$PWD")
 BIN_DIR="${PARENT_DIR}/bin"
@@ -74,25 +73,19 @@ function containsElement () {
 
 function checkjq () {
   mkdir -p $BIN_DIR
-
   if [ ! -f "${BIN_DIR}/jq" ]; then
     curl -sSL https://github.com/stedolan/jq/releases/download/jq-1.6/jq-${machine}${arch} -o "${BIN_DIR}/jq"
   fi
-
   chmod +x "${BIN_DIR}/jq"
 }
-checkjq
 
 function checkyq () {
   mkdir -p $BIN_DIR
-
   if [ ! -f "${BIN_DIR}/yq" ]; then
     curl -sSL https://github.com/mikefarah/yq/releases/download/v4.13.2/yq_${yqmachine}_${yqarch} -o "${BIN_DIR}/yq"
   fi
-
   chmod +x "${BIN_DIR}/yq"
 }
-checkyq
 
 #######################################################################
 # Preflight
@@ -101,6 +94,8 @@ checkyq
 echo "===== Checking for required applications..."
 export PATH="${BIN_DIR}:$PATH"
 
+checkjq
+checkyq
 checkForProgramAndExit oc
 checkForProgramAndExit jq
 checkForProgramAndExit yq

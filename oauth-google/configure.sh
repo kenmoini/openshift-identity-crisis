@@ -42,7 +42,6 @@ case "${archOut}" in
     *)          arch="UNKNOWN:${archOut}"
 esac
 
-
 PWD=$(pwd)
 PARENT_DIR=$(dirname "$PWD")
 BIN_DIR="${PARENT_DIR}/bin"
@@ -50,13 +49,13 @@ JQ_BIN="${BIN_DIR}/jq"
 YQ_BIN="${BIN_DIR}/yq"
 
 function checkForProgramAndExit() {
-    command -v $1
-    if [[ $? -eq 0 ]]; then
-        printf '%-72s %-7s\n' $1 "PASSED!";
-    else
-        printf '%-72s %-7s\n' $1 "FAILED!";
-        exit 1
-    fi
+  command -v $1
+  if [[ $? -eq 0 ]]; then
+    printf '%-72s %-7s\n' $1 "PASSED!";
+  else
+    printf '%-72s %-7s\n' $1 "FAILED!";
+    exit 1
+  fi
 }
 
 function containsElement () {
@@ -68,21 +67,17 @@ function containsElement () {
 
 function checkjq () {
   mkdir -p $BIN_DIR
-
   if [ ! -f "${BIN_DIR}/jq" ]; then
     curl -sSL https://github.com/stedolan/jq/releases/download/jq-1.6/jq-${machine}${arch} -o "${BIN_DIR}/jq"
   fi
-
   chmod +x "${BIN_DIR}/jq"
 }
 
 function checkyq () {
   mkdir -p $BIN_DIR
-
   if [ ! -f "${BIN_DIR}/yq" ]; then
     curl -sSL https://github.com/mikefarah/yq/releases/download/v4.13.2/yq_${yqmachine}_${yqarch} -o "${BIN_DIR}/yq"
   fi
-
   chmod +x "${BIN_DIR}/yq"
 }
 

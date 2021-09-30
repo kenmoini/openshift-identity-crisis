@@ -81,7 +81,7 @@ Provide the following information:
 - **An Application Name**, whatever you'd like - this will show on the Authorization flow screen
 - **A URL** - this isn't checked and doesn't really matter outside of metadata
 - A **Description**, maybe
-- The **Authorization Callback URL** is the most important part of this form - it'll be the OpenShift OAuth Callback endpoint, eg `https://oauth-openshift.apps.cluster-3078.3078.sandbox601.opentlc.com/oauth2callback/google` following the format of: `https://oauth-openshift.apps.<cluster_name>.<base_domain>/oauth2callback/<IdP_Name>`
+- The **Authorization Callback URL** is the most important part of this form - it'll be the OpenShift OAuth Callback endpoint, eg `https://oauth-openshift.apps.cluster-3078.3078.sandbox601.opentlc.com/oauth2callback/github` following the format of: `https://oauth-openshift.apps.<cluster_name>.<base_domain>/oauth2callback/<IdP_Name>`
 
 Next, click **Register application**
 

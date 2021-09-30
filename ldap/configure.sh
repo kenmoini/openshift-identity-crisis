@@ -38,13 +38,13 @@ BIN_DIR="${PARENT_DIR}/bin"
 YQ_BIN="${BIN_DIR}/yq"
 
 function checkForProgramAndExit() {
-    command -v $1
-    if [[ $? -eq 0 ]]; then
-        printf '%-72s %-7s\n' $1 "PASSED!";
-    else
-        printf '%-72s %-7s\n' $1 "FAILED!";
-        exit 1
-    fi
+  command -v $1
+  if [[ $? -eq 0 ]]; then
+    printf '%-72s %-7s\n' $1 "PASSED!";
+  else
+    printf '%-72s %-7s\n' $1 "FAILED!";
+    exit 1
+  fi
 }
 
 function containsElement () {
@@ -56,14 +56,11 @@ function containsElement () {
 
 function checkyq () {
   mkdir -p $BIN_DIR
-
   if [ ! -f "${BIN_DIR}/yq" ]; then
     curl -sSL https://github.com/mikefarah/yq/releases/download/v4.13.2/yq_${machine}_${arch} -o "${BIN_DIR}/yq"
   fi
-
   chmod +x "${BIN_DIR}/yq"
 }
-checkyq
 
 #######################################################################
 # Main Script
@@ -72,6 +69,7 @@ checkyq
 echo "===== Checking for required applications..."
 export PATH="${BIN_DIR}:$PATH"
 
+checkyq
 checkForProgramAndExit oc
 checkForProgramAndExit yq
 
