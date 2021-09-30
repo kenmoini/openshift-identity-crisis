@@ -76,12 +76,12 @@ Before you can configure OpenShift to use GitHub as an Identity Provider, you ne
 
 </div>
 
-Provide a:
+Provide the following information:
 
-- Application Name, whatever you'd like - this will show on the Authorization flow screen
-- A URL - this isn't checked and doesn't really matter outside of metadata
-- A Description, maybe
-- The Authorization Callback URL is the most important part of this form - it'll be the OpenShift OAuth Callback endpoint, eg `https://oauth-openshift.apps.cluster-3078.3078.sandbox601.opentlc.com/oauth2callback/google` following the format of: `https://oauth-openshift.apps.<cluster_name>.<base_domain>/oauth2callback/<IdP_Name>`
+- **An Application Name**, whatever you'd like - this will show on the Authorization flow screen
+- **A URL** - this isn't checked and doesn't really matter outside of metadata
+- A **Description**, maybe
+- The **Authorization Callback URL** is the most important part of this form - it'll be the OpenShift OAuth Callback endpoint, eg `https://oauth-openshift.apps.cluster-3078.3078.sandbox601.opentlc.com/oauth2callback/google` following the format of: `https://oauth-openshift.apps.<cluster_name>.<base_domain>/oauth2callback/<IdP_Name>`
 
 Next, click **Register application**
 
@@ -115,7 +115,7 @@ The Client ID and Client Secret are needed moving forward.  If this is a private
 
 With the configuration finished in GitHub, we can now add our OAuth information to the cluster for consumption.
 
-## 1. Create OpenShift Secret for the OAuth Client Secret
+### 1. Create OpenShift Secret for the OAuth Client Secret
 
 Next, you can create the needed OpenShift Secret with the following command, so long as you are logged in as a cluster-admin
 
@@ -123,7 +123,7 @@ Next, you can create the needed OpenShift Secret with the following command, so 
 oc create secret generic github-oauth-client-secret --from-literal=clientSecret=$GITHUB_CREDENTIAL_CLIENT_SECRET -n openshift-config
 ```
 
-## 2. [Optional] Create an OpenShift ConfigMap for the GitHub Enterprise CA Certificate
+### 2. [Optional] Create an OpenShift ConfigMap for the GitHub Enterprise CA Certificate
 
 If you're connecting to a private GitHub Enterprise instance, OpenShift will need the CA Certificate chain to validate connections.  Provide that with the following command:
 
@@ -131,7 +131,7 @@ If you're connecting to a private GitHub Enterprise instance, OpenShift will nee
 oc create configmap github-ca-config-map --from-file=ca.crt=$GITHUB_CA_CERT_PEM_FILE -n openshift-config
 ```
 
-## 3. Create the YAML for the OAuth Custom Resource
+### 3. Create the YAML for the OAuth Custom Resource
 
 With the Secret created, you can now reference it in the YAML definition of the OAuth provider:
 
@@ -161,7 +161,7 @@ spec:
 - There are other options available to specify such as Organization and Team filters
 - If this is a private GitHub Enterprise instance then you also need to define the `.spec.identityProviders[0].github.ca.name` parameter
 
-## 4. Apply the YAML to the OpenShift Cluster
+### 4. Apply the YAML to the OpenShift Cluster
 
 With the YAML created, we can apply it to the cluster now with the following command, assuming you saved it to a file called oauth.yaml:
 
@@ -171,8 +171,8 @@ With the YAML created, we can apply it to the cluster now with the following com
 oc patch OAuth cluster --patch-file oauth.yaml
 ```
 
-## 5. ???????
+### 5. ???????
 
-## 6. PROFIT!!!!!1
+### 6. PROFIT!!!!!1
 
 Once the Authentication Operator has restarted you should be able to log into the cluster with GitHub Authentication!
