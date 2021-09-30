@@ -9,4 +9,4 @@ This is a repository to help bootstrap the different Identity Providers that Ope
 - [Google OAuth](./oauth-google)
 - [HTPasswd](./htpasswd)
 - [LDAP](./ldap)
-- SSO, OpenID Connection
+- [SSO, OpenID Connection](./openid-connect)
