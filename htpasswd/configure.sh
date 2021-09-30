@@ -64,25 +64,38 @@ function checkyq () {
 
   chmod +x "${BIN_DIR}/yq"
 }
+
+#######################################################################
+# Preflight
+#######################################################################
+
+echo "===== Checking for required applications..."
+export PATH="${BIN_DIR}:$PATH"
+
 checkyq
+checkForProgramAndExit oc
+checkForProgramAndExit yq
+
+# Dry run mode
+if [[ ! -z $1 ]]; then
+  if [[ $1 != "--commit" ]]; then
+      echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
+  fi
+else
+  echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
+fi
 
 #######################################################################
 # Main Script
 #######################################################################
 
-echo "Checking for required applications..."
-export PATH="${BIN_DIR}:$PATH"
-
-checkForProgramAndExit oc
-checkForProgramAndExit yq
-
-echo "Creating HTPasswd file..."
+echo "===== Creating HTPasswd file..."
 touch $HTPASSWD_FILE
 
-echo "Create the initial user..."
+echo "===== Create the initial user..."
 htpasswd -c -B -b $HTPASSWD_FILE $INITIAL_USER_NAME $INITIAL_USER_PASS
 
-echo "Create bulk users..."
+echo "===== Create bulk users..."
 for ((n=$BULK_USER_START_NUM;n<$BULK_NUM_USERS;n++))
 do
   BULK_USERNAME="${BULK_USER_PREFIX}${n}${BULK_USER_SUFFIX}"
@@ -95,23 +108,27 @@ if [[ $? == 0 ]]; then
   # Check for existing secret
   oc get secret htpasswd-secret -n openshift-config >/dev/null 2>&1
   if [[ $? == 1 ]]; then
-    echo "Creating HTPasswd secret..."
-    oc create secret generic htpasswd-secret --from-file=htpasswd=$HTPASSWD_FILE -n openshift-config
+    if [[ $1 == "--commit" ]]; then
+      echo "===== Creating HTPasswd secret..."
+      oc create secret generic htpasswd-secret --from-file=htpasswd=$HTPASSWD_FILE -n openshift-config
+    else
+      echo -e "\n===== Target YAML Modification:\n"
+      oc create secret generic htpasswd-secret --from-file=htpasswd=$HTPASSWD_FILE -n openshift-config --dry-run=client -o yaml
+    fi
   fi
   
   # Take current OAuth cluster configuration
   CURRENT_CLUSTER_CONFIG=$(oc get OAuth cluster -o yaml)
   CURRENT_CONFIG_LEN=$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} eval '.spec.identityProviders | length' -)
-  #CURRENT_CONFIG_LEN=$(yq <<<$(oc get OAuth cluster -o yaml) '.spec.identityProviders | length')
   CURRENT_IDPs=""
   CURRENT_IDP_NAMES=()
-  echo -e "Current Config:\n\n${CURRENT_CLUSTER_CONFIG}"
+  echo -e "\n===== Current Config (${CURRENT_CONFIG_LEN}):\n\n${CURRENT_CLUSTER_CONFIG}"
 
   # Add current OAuth Identity Providers to an array
   for ((n=0;n<$CURRENT_CONFIG_LEN;n++))
   do
     CUR_NAME=$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} eval '.spec.identityProviders['$n'].name' -)
-    echo "Found IDP: ${CUR_NAME}..."
+    echo "===== Found IDP: ${CUR_NAME}..."
     CURRENT_IDP_NAMES=(${CURRENT_IDP_NAMES[@]} "$CUR_NAME")
     CURRENT_IDPs="${CURRENT_IDPs}$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} -o=json eval '.spec.identityProviders['$n']' -),"
   done
@@ -129,15 +146,23 @@ if [[ $? == 0 ]]; then
     # Apply the joined configuration
     echo "Adding HTPasswd to OAuth cluster configuration..."
     PATCH_CONTENTS='{"spec": { "identityProviders": '${CURRENT_IDPs}' }}'
-    if [ $1 == "--commit" ]; then
-      echo "Writing configuration to cluster!"
+    if [[ $1 == "--commit" ]]; then
+      echo "===== Writing configuration to cluster!"
       oc patch OAuth cluster --type merge --patch "$PATCH_CONTENTS"
     else
-      echo -e "\n\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n\n"
+      echo -e "\n===== Target YAML Modification:\n"
       oc patch OAuth cluster --type merge --patch "$PATCH_CONTENTS" --dry-run=client -o yaml
-      echo -e "\n\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n\n"
     fi
   fi
+
+# Dry run mode
+if [[ ! -z $1 ]]; then
+  if [[ $1 != "--commit" ]]; then
+      echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
+  fi
+else
+  echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
+fi
 
   echo -e "\nFinished provisioning Htpasswd Identity Provider for OpenShift!\n\n"
   exit 0

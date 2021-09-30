@@ -4,8 +4,8 @@ This is a repository to help bootstrap the different Identity Providers that Ope
 
 ## Catalog
 
-- GitHub OAuth
-- GitLab OAuth
+- [GitHub OAuth](./oauth-github)
+- GitLab.com OAuth
 - [Google OAuth](./oauth-google)
 - [HTPasswd](./htpasswd)
 - [LDAP](./ldap)

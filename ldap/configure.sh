@@ -69,7 +69,7 @@ checkyq
 # Main Script
 #######################################################################
 
-echo "Checking for required applications..."
+echo "===== Checking for required applications..."
 export PATH="${BIN_DIR}:$PATH"
 
 checkForProgramAndExit oc
@@ -82,16 +82,26 @@ if [[ $? == 0 ]]; then
   # Check for existing secret
   oc get secret ldap-bind-password -n openshift-config >/dev/null 2>&1
   if [[ $? == 1 ]]; then
-    echo "Creating LDAP Bind User Secret..."
-    oc create secret generic ldap-bind-password --from-literal=bindPassword=$BIND_USER_PASS -n openshift-config
+    if [[ $1 == "--commit" ]]; then
+      echo "===== Creating LDAP Bind User Secret..."
+      oc create secret generic ldap-bind-password --from-literal=bindPassword=$BIND_USER_PASS -n openshift-config
+    else
+      echo -e "\n===== Target YAML Modification:\n"
+      oc create secret generic ldap-bind-password --from-literal=bindPassword=$BIND_USER_PASS -n openshift-config --dry-run=client -o yaml
+    fi
   fi
 
   # Check for existing ConfigMap
   oc get configmap ldap-ca-cert -n openshift-config >/dev/null 2>&1
   if [[ $? == 1 ]]; then
     if [[ -f $LDAP_CA_CERT_FILE ]]; then
-      echo "Creating LDAP CA Cert ConfigMap..."
-      oc create configmap ldap-ca-cert --from-file=ca.crt=$LDAP_CA_CERT_FILE -n openshift-config
+      if [[ $1 == "--commit" ]]; then
+        echo "===== Creating LDAP CA Cert ConfigMap..."
+        oc create configmap ldap-ca-cert --from-file=ca.crt=$LDAP_CA_CERT_FILE -n openshift-config
+      else
+        echo -e "\n===== Target YAML Modification:\n"
+        oc create configmap ldap-ca-cert --from-file=ca.crt=$LDAP_CA_CERT_FILE -n openshift-config --dry-run=client -o yaml
+      fi
     else
       echo "LDAP CA Certificate not found at ${LDAP_CA_CERT_FILE} !"
       exit 1
@@ -107,13 +117,13 @@ if [[ $? == 0 ]]; then
   CURRENT_CONFIG_LEN=$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} eval '.spec.identityProviders | length' -)
   CURRENT_IDPs=""
   CURRENT_IDP_NAMES=()
-  echo -e "\nCurrent Config:\n\n${CURRENT_CLUSTER_CONFIG}"
+  echo -e "\n===== Current Config (${CURRENT_CONFIG_LEN}):\n\n${CURRENT_CLUSTER_CONFIG}"
 
   # Add current OAuth Identity Providers to an array
   for ((n=0;n<$CURRENT_CONFIG_LEN;n++))
   do
     CUR_NAME=$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} eval '.spec.identityProviders['$n'].name' -)
-    echo "Found IDP: ${CUR_NAME}..."
+    echo "===== Found IDP: ${CUR_NAME}..."
     CURRENT_IDP_NAMES=(${CURRENT_IDP_NAMES[@]} "$CUR_NAME")
     CURRENT_IDPs="${CURRENT_IDPs}$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} -o=json eval '.spec.identityProviders['$n']' -),"
   done
@@ -128,16 +138,24 @@ if [[ $? == 0 ]]; then
     CURRENT_IDPs="[${CURRENT_IDPs}$(cat oauth-config.yaml | ${YQ_BIN} -o=json eval '.spec.identityProviders[0]' -)]"
 
     # Apply the joined configuration
-    echo "Adding LDAP to OAuth cluster configuration..."
+    echo "===== Adding LDAP to OAuth cluster configuration..."
     PATCH_CONTENTS='{"spec": { "identityProviders": '${CURRENT_IDPs}' }}'
     if [[ $1 == "--commit" ]]; then
-      echo "Writing configuration to cluster!"
+      echo "===== Writing configuration to cluster!"
       oc patch OAuth cluster --type merge --patch "$PATCH_CONTENTS"
     else
-      echo -e "\n\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n\n"
+      echo -e "\n===== Target YAML Modification:\n"
       oc patch OAuth cluster --type merge --patch "$PATCH_CONTENTS" --dry-run=client -o yaml
-      echo -e "\n\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n\n"
     fi
+  fi
+
+  # Dry run mode
+  if [[ ! -z $1 ]]; then
+    if [[ $1 != "--commit" ]]; then
+        echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
+    fi
+  else
+    echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
   fi
 
   echo -e "\nFinished provisioning LDAP Identity Provider for OpenShift!\n\n"

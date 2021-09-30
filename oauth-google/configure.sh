@@ -4,9 +4,14 @@
 # Setup Vars
 #######################################################################
 
+## GCP_CREDENTIAL_JSON_FILE provides all the input needed via the downloaded credential JSON file
 export GCP_CREDENTIAL_JSON_FILE=${GCP_CREDENTIAL_JSON_FILE:="$HOME/gcp-credentials.json"}
 
-# HOSTED_DOMAIN is the limit on what domain names can use this to log in - leave empty to allow anyone, set to `example.com` to only allow @example.com GSuite users to log in
+## GCP_CREDENTIAL_CLIENT_ID & GCP_CREDENTIAL_CLIENT_SECRET need to be defined if no file input is used
+export GCP_CREDENTIAL_CLIENT_ID=${GCP_CREDENTIAL_CLIENT_ID:=""}
+export GCP_CREDENTIAL_CLIENT_SECRET=${GCP_CREDENTIAL_CLIENT_SECRET:=""}
+
+## HOSTED_DOMAIN is the limit on what domain names can use this to log in - leave empty to allow anyone, set to `example.com` to only allow @example.com GSuite users to log in
 export HOSTED_DOMAIN=${HOSTED_DOMAIN:=""}
 
 #######################################################################
@@ -70,7 +75,6 @@ function checkjq () {
 
   chmod +x "${BIN_DIR}/jq"
 }
-checkjq
 
 function checkyq () {
   mkdir -p $BIN_DIR
@@ -81,27 +85,48 @@ function checkyq () {
 
   chmod +x "${BIN_DIR}/yq"
 }
-checkyq
 
 #######################################################################
-# Main Script
+# Preflight
 #######################################################################
 
-echo "Checking for required applications..."
+echo "===== Checking for required applications..."
 export PATH="${BIN_DIR}:$PATH"
 
+checkjq
+checkyq
 checkForProgramAndExit oc
 checkForProgramAndExit jq
 checkForProgramAndExit yq
 
 if [[ ! -f $GCP_CREDENTIAL_JSON_FILE ]]; then
   echo "GCP Credential JSON file not found at ${GCP_CREDENTIAL_JSON_FILE} as defined by \$GCP_CREDENTIAL_JSON_FILE !"
-  exit 1
+  if [[ -z "$GCP_CREDENTIAL_CLIENT_ID" ]] || [[ -z "$GCP_CREDENTIAL_CLIENT_SECRET" ]]; then
+    echo "GCP Credentials not found at \$GCP_CREDENTIAL_CLIENT_ID and \$GCP_CREDENTIAL_CLIENT_SECRET!"
+    echo "Failed preflight!"
+    exit 1
+  else
+    CLIENT_ID=$GCP_CREDENTIAL_CLIENT_ID
+    CLIENT_SECRET=$GCP_CREDENTIAL_CLIENT_SECRET
+  fi
+else
+  # Set up client variables
+  CLIENT_ID=$(jq -r '.web.client_id' ${GCP_CREDENTIAL_JSON_FILE})
+  CLIENT_SECRET=$(jq -r '.web.client_secret' ${GCP_CREDENTIAL_JSON_FILE})
 fi
 
-# Set up client variables
-CLIENT_ID=$(jq -r '.web.client_id' ${GCP_CREDENTIAL_JSON_FILE})
-CLIENT_SECRET=$(jq -r '.web.client_secret' ${GCP_CREDENTIAL_JSON_FILE})
+# Dry run mode
+if [[ ! -z $1 ]]; then
+  if [[ $1 != "--commit" ]]; then
+      echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
+  fi
+else
+  echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
+fi
+
+#######################################################################
+# Main Script
+#######################################################################
 
 # Check for a logged in user
 oc whoami >/dev/null 2>&1
@@ -110,8 +135,13 @@ if [[ $? == 0 ]]; then
   # Check for existing secret
   oc get secret google-oauth-client-secret -n openshift-config >/dev/null 2>&1
   if [[ $? == 1 ]]; then
-    echo "Creating Google OAuth Client Secret, Secret..."
-    oc create secret generic google-oauth-client-secret --from-literal=clientSecret=$CLIENT_SECRET -n openshift-config
+    if [[ $1 == "--commit" ]]; then
+      echo "===== Creating Google OAuth Client Secret, Secret..."
+      oc create secret generic google-oauth-client-secret --from-literal=clientSecret=$CLIENT_SECRET -n openshift-config
+    else
+      echo -e "\n===== Target YAML Modification:\n"
+      oc create secret generic google-oauth-client-secret --from-literal=clientSecret=$CLIENT_SECRET -n openshift-config --dry-run=client -o yaml
+    fi
   fi
 
   # Template out the OAuth Config if does not exist
@@ -123,13 +153,13 @@ if [[ $? == 0 ]]; then
   CURRENT_CONFIG_LEN=$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} eval '.spec.identityProviders | length' -)
   CURRENT_IDPs=""
   CURRENT_IDP_NAMES=()
-  echo -e "\nCurrent Config:\n\n${CURRENT_CLUSTER_CONFIG}"
+  echo -e "\n===== Current Config (${CURRENT_CONFIG_LEN}):\n\n${CURRENT_CLUSTER_CONFIG}"
 
   # Add current OAuth Identity Providers to an array
   for ((n=0;n<$CURRENT_CONFIG_LEN;n++))
   do
     CUR_NAME=$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} eval '.spec.identityProviders['$n'].name' -)
-    echo "Found IDP: ${CUR_NAME}..."
+    echo "===== Found IDP: ${CUR_NAME}..."
     CURRENT_IDP_NAMES=(${CURRENT_IDP_NAMES[@]} "$CUR_NAME")
     CURRENT_IDPs="${CURRENT_IDPs}$(echo "$CURRENT_CLUSTER_CONFIG" | ${YQ_BIN} -o=json eval '.spec.identityProviders['$n']' -),"
   done
@@ -144,16 +174,24 @@ if [[ $? == 0 ]]; then
     CURRENT_IDPs="[${CURRENT_IDPs}$(cat oauth-config.yaml | ${YQ_BIN} -o=json eval '.spec.identityProviders[0]' -)]"
 
     # Apply the joined configuration
-    echo "Adding Google OAuth to OAuth cluster configuration..."
+    echo "===== Adding Google OAuth to OAuth cluster configuration..."
     PATCH_CONTENTS='{"spec": { "identityProviders": '${CURRENT_IDPs}' }}'
     if [[ $1 == "--commit" ]]; then
-      echo "Writing configuration to cluster!"
+      echo "===== Writing configuration to cluster!"
       oc patch OAuth cluster --type merge --patch "$PATCH_CONTENTS"
     else
-      echo -e "\n\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n\n"
+      echo -e "\n===== Target YAML Modification:\n"
       oc patch OAuth cluster --type merge --patch "$PATCH_CONTENTS" --dry-run=client -o yaml
-      echo -e "\n\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n\n"
     fi
+  fi
+
+  # Dry run mode
+  if [[ ! -z $1 ]]; then
+    if [[ $1 != "--commit" ]]; then
+        echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
+    fi
+  else
+    echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
   fi
 
   echo -e "\nFinished provisioning Google OAuth Identity Provider for OpenShift!\n\n"
