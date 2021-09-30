@@ -1,0 +1,15 @@
+---
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+  - name: GitLab
+    mappingMethod: claim
+    type: GitLab
+    gitlab:
+      clientID: CLIENT_ID_HERE
+      clientSecret:
+        name: gitlab-oauth-client-secret
+      url: GITLAB_ENDPOINT_HERE
