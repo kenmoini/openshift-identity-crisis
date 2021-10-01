@@ -4,6 +4,7 @@ This is a repository to help bootstrap the different Identity Providers that Ope
 
 ## Catalog
 
+- [Basic Auth Headers](./basic-auth)
 - [GitHub OAuth](./oauth-github)
 - [GitLab OAuth](./oauth-gitlab)
 - [Google OAuth](./oauth-google)
