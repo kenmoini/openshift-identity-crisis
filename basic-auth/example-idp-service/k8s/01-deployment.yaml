@@ -1,0 +1,33 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: basic-auth-server
+  labels:
+    app: basic-auth-server
+    app.kubernetes.io/part-of: basic-auth-server
+    component: basic-auth-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: basic-auth-server
+      component: basic-auth-server
+  template:
+    metadata:
+      labels:
+        app: basic-auth-server
+        component: basic-auth-server
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      containers:
+        - terminationMessagePath: /dev/termination-log
+          name: basic-auth-server
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          image: 'quay.io/kenmoini/basic-auth-nodejs-service:latest'
+  updateStrategy:
+    type: RollingUpdate

@@ -1,0 +1,19 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  annotations:
+    description: The Basic Auth server's Service
+  labels:
+    app: basic-auth-server
+  name: basic-auth-server
+spec:
+  ports:
+    - name: basic-auth-server
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: basic-auth-server
+    component: basic-auth-server
+  type: ClusterIP

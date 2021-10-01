@@ -4,22 +4,15 @@
 # Setup Vars
 #######################################################################
 
-## OIDC_NAME is a DNS-safe name for this OIDC IdP
-export OIDC_NAME=${OIDC_NAME:="MySSO"}
-export OIDC_LOWER_NAME=$(echo "${OIDC_NAME}" | tr '[:upper:]' '[:lower:]')
+## BASIC_AUTH_NAME is a DNS-safe name for this BASIC_AUTH IdP
+export BASIC_AUTH_NAME=${BASIC_AUTH_NAME:="MySSO"}
+export BASIC_AUTH_LOWER_NAME=$(echo "${BASIC_AUTH_NAME}" | tr '[:upper:]' '[:lower:]')
 
-## OIDC_CREDENTIAL_JSON_FILE provides all the input needed via the downloaded credential Keycloak OIDC JSON file
-export OIDC_CREDENTIAL_JSON_FILE=${OIDC_CREDENTIAL_JSON_FILE:="$HOME/oidc-credentials.json"}
+## BASIC_AUTH_ENDPOINT points to the HTTPS endpoint of the Basic Auth service
+export BASIC_AUTH_ENDPOINT=${BASIC_AUTH_ENDPOINT:=""}
 
-## OIDC_CREDENTIAL_CLIENT_ID & OIDC_CREDENTIAL_CLIENT_SECRET need to be defined
-export OIDC_CREDENTIAL_CLIENT_ID=${OIDC_CREDENTIAL_CLIENT_ID:=""}
-export OIDC_CREDENTIAL_CLIENT_SECRET=${OIDC_CREDENTIAL_CLIENT_SECRET:=""}
-
-## OIDC_ENDPOINT is the private hosted OpenID Connect Auth Server instance being targeted
-export OIDC_ENDPOINT=${OIDC_ENDPOINT:=""}
-
-## OIDC_CA_CERT_PEM_FILE is the location to the CA Certificate the private OpenID Connect Auth Server server is signed by
-export OIDC_CA_CERT_PEM_FILE=${OIDC_CA_CERT_PEM_FILE:=""}
+## BASIC_AUTH_CA_CERT_PEM_FILE is the location to the CA Certificate the private Basic Auth service is signed by
+export BASIC_AUTH_CA_CERT_PEM_FILE=${BASIC_AUTH_CA_CERT_PEM_FILE:=""}
 
 #######################################################################
 # Functions
@@ -103,35 +96,22 @@ checkForProgramAndExit yq
 
 echo -e "\n===== Checking for required variables..."
 
-if [[ -z "$OIDC_ENDPOINT" ]]; then
-  echo "OpenID Connect Auth Server OAuth Endpoint not found at \$OIDC_ENDPOINT!"
+if [[ -z "$BASIC_AUTH_ENDPOINT" ]]; then
+  echo "Basic Auth Server Endpoint not found at \$BASIC_AUTH_ENDPOINT!"
   echo "Failed preflight!"
   exit 1
 fi
 
-## Check for Credentials
-if [[ ! -f $OIDC_CREDENTIAL_JSON_FILE ]]; then
-  echo "OIDC Credential JSON file not found at ${OIDC_CREDENTIAL_JSON_FILE} as defined by \$OIDC_CREDENTIAL_JSON_FILE !"
-  if [[ -z "$OIDC_CREDENTIAL_CLIENT_ID" ]] || [[ -z "$OIDC_CREDENTIAL_CLIENT_SECRET" ]]; then
-    echo "OpenID Connect Auth Server OAuth Credentials not found at \$OIDC_CREDENTIAL_CLIENT_ID and \$OIDC_CREDENTIAL_CLIENT_SECRET!"
+if [[ ! -z $BASIC_AUTH_CA_CERT_PEM_FILE ]]; then
+  if [[ ! -f $BASIC_AUTH_CA_CERT_PEM_FILE ]]; then
+    echo "Basic Auth Server CA Certificate defined as \$BASIC_AUTH_CA_CERT_PEM_FILE but not found on the filesystem!"
     echo "Failed preflight!"
     exit 1
-  else
-    CLIENT_ID=$OIDC_CREDENTIAL_CLIENT_ID
-    CLIENT_SECRET=$OIDC_CREDENTIAL_CLIENT_SECRET
   fi
 else
-  # Set up client variables
-  CLIENT_ID=$(jq -r '.resource' ${OIDC_CREDENTIAL_JSON_FILE})
-  CLIENT_SECRET=$(jq -r '.credentials.secret' ${OIDC_CREDENTIAL_JSON_FILE})
-fi
-
-if [[ ! -z $OIDC_CA_CERT_PEM_FILE ]]; then
-  if [[ ! -f $OIDC_CA_CERT_PEM_FILE ]]; then
-    echo "OpenID Connect Auth Server CA Certificate defined as \$OIDC_CA_CERT_PEM_FILE but not found on the filesystem!"
-    echo "Failed preflight!"
-    exit 1
-  fi
+  echo "Basic Auth Server CA Certificate not defined as \$BASIC_AUTH_CA_CERT_PEM_FILE!"
+  echo "Failed preflight!"
+  exit 1
 fi
 
 # Dry run mode
@@ -151,44 +131,30 @@ fi
 oc whoami >/dev/null 2>&1
 if [[ $? == 0 ]]; then
 
-  # Check for existing secret
-  CLIENT_SECRET_NAME="${OIDC_LOWER_NAME}-oidc-oauth-client-secret"
-  oc get secret ${CLIENT_SECRET_NAME} -n openshift-config >/dev/null 2>&1
-  if [[ $? == 1 ]]; then
-    if [[ $1 == "--commit" ]]; then
-      echo "===== Creating ${OIDC_NAME} OpenID Connect OAuth Client Secret, Secret..."
-      oc create secret generic ${CLIENT_SECRET_NAME} --from-literal=clientSecret=$CLIENT_SECRET -n openshift-config
-    else
-      echo -e "\n===== Target YAML Modification:\n"
-      oc create secret generic ${CLIENT_SECRET_NAME} --from-literal=clientSecret=$CLIENT_SECRET -n openshift-config --dry-run=client -o yaml
-    fi
-  fi
-
   # Check for existing CA Cert ConfigMap if needed
-  if [[ ! -z $OIDC_CA_CERT_PEM_FILE ]] && [[ -f $OIDC_CA_CERT_PEM_FILE ]]; then
+  if [[ ! -z $BASIC_AUTH_CA_CERT_PEM_FILE ]] && [[ -f $BASIC_AUTH_CA_CERT_PEM_FILE ]]; then
     # Check for existing CA Cert ConfigMap
-    CLIENT_CA_CERT_CONFIGMAP_NAME="${OIDC_LOWER_NAME}-oidc-ca-config-map"
+    CLIENT_CA_CERT_CONFIGMAP_NAME="${BASIC_AUTH_LOWER_NAME}-basic-auth-ca-config-map"
     oc get configmap ${CLIENT_CA_CERT_CONFIGMAP_NAME} -n openshift-config >/dev/null 2>&1
     if [[ $? == 1 ]]; then
       if [[ $1 == "--commit" ]]; then
-        echo "===== Creating ${OIDC_NAME} OpenID Connect CA Cert ConfigMap..."
-        oc create configmap ${CLIENT_CA_CERT_CONFIGMAP_NAME} --from-file=ca.crt=$OIDC_CA_CERT_PEM_FILE -n openshift-config
+        echo "===== Creating ${BASIC_AUTH_NAME} Basic Auth CA Cert ConfigMap..."
+        oc create configmap ${CLIENT_CA_CERT_CONFIGMAP_NAME} --from-file=ca.crt=$BASIC_AUTH_CA_CERT_PEM_FILE -n openshift-config
       else
         echo -e "\n===== Target YAML Modification:\n"
-        oc create configmap ${CLIENT_CA_CERT_CONFIGMAP_NAME} --from-file=ca.crt=$OIDC_CA_CERT_PEM_FILE -n openshift-config --dry-run=client -o yaml
+        oc create configmap ${CLIENT_CA_CERT_CONFIGMAP_NAME} --from-file=ca.crt=$BASIC_AUTH_CA_CERT_PEM_FILE -n openshift-config --dry-run=client -o yaml
       fi
     fi
   fi
 
   # Template out the OAuth Config
-  sed "s|OIDC_CLIENT_ID_HERE|${CLIENT_ID}|g" oauth-config.yaml.template > oauth-config.yaml
-  sed -i "s|OIDC_CLIENT_SECRET_HERE|${CLIENT_SECRET_NAME}|g" oauth-config.yaml
-  sed -i "s|OIDC_ISSUER_URI_HERE|${OIDC_ENDPOINT}|g" oauth-config.yaml
-  sed -i "s|OIDC_NAME_HERE|${OIDC_NAME}|g" oauth-config.yaml
+  sed "s|BASIC_AUTH_NAME_HERE|${BASIC_AUTH_NAME}|g" oauth-config.yaml.template > oauth-config.yaml
+  sed -i "s|HTTPS_ENDPOINT_HERE|${BASIC_AUTH_ENDPOINT}|g" oauth-config.yaml
+  sed -i "s|CA_CERT_CONFIGMAP_NAME_HERE|${CLIENT_CA_CERT_CONFIGMAP_NAME}|g" oauth-config.yaml
 
   echo "" >> oauth-config.yaml
   # Add CA Certificate definition
-  if [[ ! -z $OIDC_CA_CERT_PEM_FILE ]] && [[ -f $OIDC_CA_CERT_PEM_FILE ]]; then
+  if [[ ! -z $BASIC_AUTH_CA_CERT_PEM_FILE ]] && [[ -f $BASIC_AUTH_CA_CERT_PEM_FILE ]]; then
     echo "      ca:" >> oauth-config.yaml
     echo "        name: ${CLIENT_CA_CERT_CONFIGMAP_NAME}" >> oauth-config.yaml
   fi
@@ -219,7 +185,7 @@ if [[ $? == 0 ]]; then
     CURRENT_IDPs="[${CURRENT_IDPs}$(cat oauth-config.yaml | ${YQ_BIN} -o=json eval '.spec.identityProviders[0]' -)]"
 
     # Apply the joined configuration
-    echo "Adding ${OIDC_NAME} OpenID Connect OAuth to OAuth cluster configuration..."
+    echo "Adding ${BASIC_AUTH_NAME} Basic Auth to OAuth cluster configuration..."
     PATCH_CONTENTS='{"spec": { "identityProviders": '${CURRENT_IDPs}' }}'
     if [[ $1 == "--commit" ]]; then
       echo "Writing configuration to cluster!"
@@ -239,7 +205,7 @@ if [[ $? == 0 ]]; then
     echo -e "\n======================================================================\nDry run - configuration NOT applied to cluster!  Rerun with '--commit'\n======================================================================\n"
   fi
 
-  echo -e "\nFinished provisioning ${OIDC_NAME} OpenID Connect OAuth Identity Provider for OpenShift!\n\n"
+  echo -e "\nFinished provisioning ${BASIC_AUTH_NAME} Basic Auth OAuth Identity Provider for OpenShift!\n\n"
   exit 0
 else
   echo "Not logged into an OpenShift cluster with `oc` CLI!"

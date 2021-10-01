@@ -1,0 +1,17 @@
+---
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: basic-auth-server
+  labels:
+    app: basic-auth-server
+spec:
+  to:
+    kind: Service
+    name: basic-auth-server
+    weight: 100
+  port:
+    targetPort: basic-auth-server
+  tls:
+    termination: reencrypt
+  wildcardPolicy: None

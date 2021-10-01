@@ -4,3 +4,5 @@ bin/*
 */oauth-config.yaml.working
 */oauth-config.yml
 */oauth-config.yml.working
+node_modules/
+*/node_modules/
